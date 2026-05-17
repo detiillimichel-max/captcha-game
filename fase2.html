@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fase 2 - Human Verification</title>
+    <style>
+        /* DESIGN PREMIUM GLASSMORPHISM CLARO */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+            color: #1e293b;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+            overflow-x: hidden;
+        }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            border-radius: 24px;
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(148, 163, 184, 0.15);
+            text-align: center;
+        }
+
+        .header {
+            background: #008080; /* Cor inspirada na sua imagem */
+            padding: 15px;
+            border-radius: 12px;
+            text-align: left;
+            margin-bottom: 20px;
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        /* GRADE DO QUEBRA-CABEÇA */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            background: rgba(0, 0, 0, 0.03);
+            padding: 10px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 1px dashed rgba(0, 0, 0, 0.1);
+        }
+
+        .slot {
+            aspect-ratio: 1;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 32px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .slot.empty {
+            background: rgba(0, 0, 0, 0.05);
+            border: 2px dashed #94a3b8;
+        }
+
+        .slot.highlight {
+            border-color: #008080;
+            background: rgba(0, 128, 128, 0.1);
+            transform: scale(1.05);
+        }
+
+        /* ÁREA DO ANIMAL ALVO (O Porquinho) */
+        .target-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #ffffff;
+            padding: 15px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        .target-animal {
+            font-size: 40px;
+            background: #f1f5f9;
+            width: 70px;
+            height: 70px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 3px solid transparent;
+        }
+
+        .target-animal.selected {
+            border-color: #008080;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px rgba(0, 128, 128, 0.2);
+        }
+
+        .btn-verify {
+            background: #008080;
+            color: white;
+            border: none;
+            padding: 14px 30px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-verify:active {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <div class="header">
+            Toque no animal abaixo e depois toque no espaço vazio correto para movê-lo.
+        </div>
+
+        <div class="grid-container" id="puzzle-grid">
+            </div>
+
+        <div class="target-area">
+            <div>
+                <p style="font-size: 12px; color: #64748b; font-weight: bold; margin-bottom: 5px;">Mova este:</p>
+                <div class="target-animal" id="target-pig" onclick="selectPig()">🐷</div>
+            </div>
+            <button class="btn-verify" onclick="checkWin()">Verificar</button>
+        </div>
+    </div>
+
+    <script>
+        const grid = document.getElementById('puzzle-grid');
+        const pig = document.getElementById('target-pig');
+        let pigSelected = false;
+        let pigPlaced = false;
+
+        // Mistura de animais (Emojis)
+        const animals = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁'];
+        
+        // Inicializa a grade
+        function initGrid() {
+            // Embaralha os animais
+            animals.sort(() => Math.random() - 0.5);
+            
+            // Cria 12 espaços (11 animais e 1 vazio)
+            for(let i = 0; i < 12; i++) {
+                const slot = document.createElement('div');
+                slot.classList.add('slot');
+                
+                if (i === 7) { // O espaço 7 será o vazio (pode ser aleatório depois)
+                    slot.classList.add('empty');
+                    slot.id = 'empty-slot';
+                    slot.onclick = () => moveToEmpty(slot);
+                } else {
+                    slot.innerText = animals.pop() || '🐔'; // Preenche com animal
+                }
+                
+                grid.appendChild(slot);
+            }
+        }
+
+        function selectPig() {
+            if (pigPlaced) return; // Se já colocou na grade, não faz nada
+            pigSelected = true;
+            pig.classList.add('selected');
+            document.getElementById('empty-slot').classList.add('highlight'); // Mostra onde deve clicar
+        }
+
+        function moveToEmpty(slot) {
+            if (pigSelected && !pigPlaced) {
+                slot.innerText = '🐷'; // Coloca o porquinho no espaço
+                slot.classList.remove('empty', 'highlight');
+                
+                // Remove o porquinho da área de baixo
+                pig.innerText = '✔️';
+                pig.classList.remove('selected');
+                pig.style.background = '#e2e8f0';
+                
+                pigPlaced = true;
+                pigSelected = false;
+            }
+        }
+
+        function checkWin() {
+            if (pigPlaced) {
+                alert("Perfeito! Você completou a Fase 2! 🚀 Preparando Fase 3...");
+                // Aqui no futuro colocaremos: window.location.href = "fase3.html";
+            } else {
+                alert("Você precisa colocar o porquinho no espaço vazio primeiro!");
+            }
+        }
+
+        window.onload = initGrid;
+    </script>
+</body>
+</html>

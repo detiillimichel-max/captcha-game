@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fase 3 - Encontre o Intruso</title>
+    <style>
+        /* DESIGN PREMIUM GLASSMORPHISM CLARO */
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 15px; }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            width: 100%; max-width: 400px;
+            padding: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .header { background: #e11d48; color: white; padding: 15px; border-radius: 16px; margin-bottom: 20px; text-align: left; }
+        
+        .grid { display: grid; gap: 10px; margin-bottom: 20px; justify-content: center; }
+
+        .item {
+            background: white; border-radius: 12px;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 30px; cursor: pointer; transition: 0.2s;
+            border: 2px solid transparent; aspect-ratio: 1;
+        }
+        .item:active { transform: scale(0.9); background: #fff1f2; }
+
+        .status { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: bold; color: #e11d48; }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <div class="status">
+            <span id="sub-level">SUB-FASE: 1/5</span>
+            <span id="timer">10s</span>
+        </div>
+        <div class="header">
+            <h3>Encontre o Intruso!</h3>
+            <p style="font-size: 13px; opacity: 0.9;">Toque no objeto que é diferente dos outros.</p>
+        </div>
+
+        <div class="grid" id="game-grid"></div>
+    </div>
+
+    <script>
+        let subLevel = 1;
+        let timeLeft = 10;
+        let timerInterval;
+
+        // Conjuntos de (Padrão, Intruso)
+        const challenges = [
+            { normal: '🍎', intruder: '🍋' },
+            { normal: '🐶', intruder: '🐱' },
+            { normal: '🚗', intruder: '🚲' },
+            { normal: '⚽', intruder: '🏀' },
+            { normal: '⭐', intruder: '🌙' }
+        ];
+
+        function initLevel() {
+            clearInterval(timerInterval);
+            timeLeft = 10 - subLevel; // Fica mais difícil
+            document.getElementById('timer').innerText = timeLeft + 's';
+            document.getElementById('sub-level').innerText = `SUB-FASE: ${subLevel}/5`;
+            
+            generateGrid();
+            startTimer();
+        }
+
+        function generateGrid() {
+            const grid = document.getElementById('game-grid');
+            grid.innerHTML = '';
+            
+            // Aumenta a grade conforme a sub-fase
+            const size = subLevel + 2; // Nível 1 = 3x3, Nível 2 = 4x4...
+            grid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+
+            const totalItems = size * size;
+            const intruderIndex = Math.floor(Math.random() * totalItems);
+            const currentChallenge = challenges[subLevel - 1];
+
+            for (let i = 0; i < totalItems; i++) {
+                const item = document.createElement('div');
+                item.classList.add('item');
+                
+                if (i === intruderIndex) {
+                    item.innerText = currentChallenge.intruder;
+                    item.onclick = nextLevel;
+                } else {
+                    item.innerText = currentChallenge.normal;
+                    item.onclick = () => { alert("Errou! Voltando ao início da Fase 3."); subLevel = 1; initLevel(); };
+                }
+                grid.appendChild(item);
+            }
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer').innerText = timeLeft + 's';
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    alert("O tempo acabou! Tente novamente.");
+                    subLevel = 1; initLevel();
+                }
+            }, 1000);
+        }
+
+        function nextLevel() {
+            if (subLevel < 5) {
+                subLevel++;
+                initLevel();
+            } else {
+                clearInterval(timerInterval);
+                alert("Mestre dos Intrusos! Fase 3 concluída! 🏆 Preparando Fase 4...");
+                // No futuro: window.location.href = "fase4.html";
+            }
+        }
+
+        window.onload = initLevel;
+    </script>
+</body>
+</html>
+

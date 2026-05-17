@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OIO - Human Verification Game</title>
+    <title>Human Verification Game</title>
     <style>
-        /* DESIGN PREMIUM GLASSMORPHISM */
+        /* DESIGN PREMIUM GLASSMORPHISM - MODO CLARO BRANCO */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -15,8 +15,8 @@
         }
 
         body {
-            background: radial-gradient(circle at top right, #1a1c29, #0d0e15);
-            color: #ffffff;
+            background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+            color: #1e293b;
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -26,15 +26,15 @@
         }
 
         .game-container {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
             border-radius: 24px;
             width: 100%;
             max-width: 400px;
             padding: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 20px 40px rgba(148, 163, 184, 0.15), 0 1px 3px rgba(0, 0, 0, 0.05);
             text-align: center;
         }
 
@@ -45,7 +45,8 @@
             border-radius: 16px;
             text-align: left;
             margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(0, 112, 243, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 112, 243, 0.2);
+            color: #ffffff;
         }
 
         .captcha-header span {
@@ -71,12 +72,13 @@
         }
 
         .timer-box {
-            background: rgba(255, 255, 255, 0.07);
+            background: rgba(0, 0, 0, 0.04);
+            color: #334155;
             padding: 6px 14px;
             border-radius: 20px;
             font-size: 14px;
             font-weight: 600;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(0, 0, 0, 0.05);
         }
 
         .level-box {
@@ -96,7 +98,7 @@
         .image-tile {
             position: relative;
             aspect-ratio: 1;
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(0, 0, 0, 0.05);
             border-radius: 12px;
             overflow: hidden;
             cursor: pointer;
@@ -174,7 +176,6 @@
     </div>
 
     <script>
-        // Banco de dados de imagens estáticas (Unsplash livre de direitos) para rodar leve no celular
         const imgBank = {
             carros: [
                 "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=150&auto=format&fit=crop",
@@ -193,10 +194,9 @@
         let timerInterval;
         let selectedTiles = [];
 
-        // Inicializa o jogo
         function initGame() {
             clearInterval(timerInterval);
-            timeLeft = Math.max(15 - (currentLevel * 2), 6); // Diminui o tempo por nível (mínimo 6s)
+            timeLeft = Math.max(15 - (currentLevel * 2), 6);
             document.getElementById("timer-display").innerText = `Tempo: ${timeLeft}s`;
             document.getElementById("level-display").innerText = `NÍVEL ${currentLevel}`;
             selectedTiles = [];
@@ -212,7 +212,7 @@
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
                     alert("O tempo acabou! Você é um robô? 🤖");
-                    currentLevel = 1; // Reseta
+                    currentLevel = 1;
                     initGame();
                 }
             }, 1000);
@@ -220,9 +220,8 @@
 
         function generateGrid() {
             const grid = document.getElementById("image-grid");
-            grid.innerHTML = ""; // Limpa a grade
+            grid.innerHTML = "";
 
-            // Lógica simples de montagem de nível (Mistura carros e animais)
             let items = [
                 { type: 'carro', url: imgBank.carros[0] },
                 { type: 'carro', url: imgBank.carros[1] },
@@ -235,7 +234,6 @@
                 { type: 'animal', url: imgBank.animais[1] }
             ];
 
-            // Sorteia a ordem dos blocos
             items.sort(() => Math.random() - 0.5);
 
             items.forEach((item, index) => {
@@ -263,7 +261,6 @@
         }
 
         function checkVerification() {
-            // Verifica se o usuário acertou todos os carros e nenhum animal
             const allTiles = document.querySelectorAll(".image-tile");
             let correct = true;
 
@@ -272,7 +269,7 @@
                 const isSelected = tile.classList.contains("selected");
 
                 if ((isCarro && !isSelected) || (!isCarro && isSelected)) {
-                    correct = false; // Errou a seleção
+                    correct = false;
                 }
             });
 
@@ -284,12 +281,11 @@
             } else {
                 clearInterval(timerInterval);
                 alert("Seleção incorreta! Tente novamente.");
-                currentLevel = 1; // Reseta ao erro
+                currentLevel = 1;
                 initGame();
             }
         }
 
-        // Dá o play automático ao carregar
         window.onload = initGame;
     </script>
 </body>

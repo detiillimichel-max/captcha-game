@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fase 5 - A Pipa Camaleão</title>
+    <style>
+        /* DESIGN PREMIUM GLASSMORPHISM CLARO */
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            -webkit-tap-highlight-color: transparent; 
+        }
+        
+        body { 
+            background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%); 
+            color: #1e293b;
+            min-height: 100vh; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            padding: 15px; 
+        }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            border-radius: 24px;
+            width: 100%; 
+            max-width: 400px;
+            padding: 20px; 
+            box-shadow: 0 20px 40px rgba(148, 163, 184, 0.15);
+            text-align: center;
+        }
+
+        .header { 
+            background: #8b5cf6; /* Roxo Premium para a Pipa */
+            color: white; 
+            padding: 15px; 
+            border-radius: 16px; 
+            margin-bottom: 20px; 
+            text-align: left; 
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.2);
+        }
+        
+        /*ÁREA DEANIMAÇÃO DA PIPA */
+        .kite-box {
+            width: 100%;
+            height: 140px;
+            background: white;
+            border-radius: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 70px;
+            margin-bottom: 20px;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.05);
+            transition: background-color 0.1s ease;
+        }
+
+        /* GRADE DE OPÇÕES DE FIGURINHAS */
+        .options-grid { 
+            display: grid; 
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 12px; 
+            margin-bottom: 20px; 
+        }
+
+        .option-card {
+            background: white; 
+            border-radius: 16px;
+            padding: 15px;
+            font-size: 35px; 
+            cursor: pointer; 
+            transition: all 0.2s;
+            border: 2px solid transparent;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .option-card span {
+            font-size: 12px;
+            font-weight: bold;
+            color: #64748b;
+            text-transform: uppercase;
+        }
+
+        .option-card:active { transform: scale(0.95); }
+        
+        .status { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 15px; 
+            font-weight: bold; 
+            color: #8b5cf6; 
+            font-size: 14px;
+        }
+
+        .btn-start {
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            width: 100%;
+            padding: 14px;
+            border-radius: 16px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <div class="status">
+            <span id="sub-level">SUB-FASE: 1/5</span>
+            <span id="timer">Tempo: 11s</span>
+        </div>
+        
+        <div class="header">
+            <h3>Fase 5: A Pipa Camaleão 🪁</h3>
+            <p id="instruction-text" style="font-size: 13px; opacity: 0.9; margin-top: 4px;">Olhe atentamente para a pipa mudando de cor!</p>
+        </div>
+
+        <div class="kite-box" id="kite-display">🪁</div>
+
+        <button class="btn-start" id="control-btn" onclick="startKiteFlash()">PRESTAR ATENÇÃO</button>
+
+        <div class="options-grid" id="options-area" style="display: none;">
+            <div class="option-card" onclick="checkAnswer('🔴')">🪁🔴<span>Vermelha</span></div>
+            <div class="option-card" onclick="checkAnswer('🔵')">🪁🔵<span>Azul</span></div>
+            <div class="option-card" onclick="checkAnswer('🟢')">🪁🟢<span>Verde</span></div>
+            <div class="option-card" onclick="checkAnswer('🟡')">🪁🟡<span>Amarela</span></div>
+        </div>
+    </div>
+
+    <script>
+        let subLevel = 1;
+        let timeLeft = 11;
+        let timerInterval;
+        let flashInterval;
+        
+        const colors = ['🔴', '🔵', '🟢', '🟡'];
+        const colorBackgrounds = {
+            '🔴': '#fee2e2',
+            '🔵': '#dbeafe',
+            '🟢': '#dcfce7',
+            '🟡': '#fef9c3'
+        };
+        
+        let finalColor = '';
+
+        function initSubLevel() {
+            clearInterval(timerInterval);
+            clearInterval(flashInterval);
+            
+            timeLeft = 11;
+            document.getElementById('timer').innerText = `Tempo: ${timeLeft}s`;
+            document.getElementById('sub-level').innerText = `SUB-FASE: ${subLevel}/5`;
+            document.getElementById('instruction-text').innerText = "Clique no botão abaixo para ver a pipa voar!";
+            
+            const kite = document.getElementById('kite-display');
+            kite.innerText = '🪁';
+            kite.style.backgroundColor = 'white';
+            
+            document.getElementById('options-area').style.display = 'none';
+            document.getElementById('control-btn').style.display = 'block';
+        }
+
+        function startKiteFlash() {
+            document.getElementById('control-btn').style.display = 'none';
+            document.getElementById('instruction-text').innerText = "Preste atenção na última cor antes dela sumir!";
+            
+            const kite = document.getElementById('kite-display');
+            let flashCount = 0;
+            // A velocidade aumenta conforme a sub-fase avança (fica mais rápido)
+            let flashSpeed = Math.max(400 - (subLevel * 70), 100); 
+
+            flashInterval = setInterval(() => {
+                let randomColor = colors[Math.floor(Math.random() * colors.length)];
+                kite.innerText = '🪁' + randomColor;
+                kite.style.backgroundColor = colorBackgrounds[randomColor];
+                finalColor = randomColor; // Guarda qual é a cor atual
+                
+                flashCount++;
+                // Pisca entre 6 e 10 vezes antes de parar
+                if (flashCount > 6 + Math.random() * 4) {
+                    clearInterval(flashInterval);
+                    setTimeout(() => {
+                        // Esconde a pipa para o usuário responder de memória
+                        kite.innerText = '❓';
+                        kite.style.backgroundColor = '#f1f5f9';
+                        showOptions();
+                    }, 500);
+                }
+            }, flashSpeed);
+        }
+
+        function showOptions() {
+            document.getElementById('options-area').style.display = 'grid';
+            document.getElementById('instruction-text').innerText = "Qual foi a ÚLTIMA cor que a pipa assumiu?";
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer').innerText = `Tempo: ${timeLeft}s`;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    alert("O tempo acabou! A IA cortou a linha da sua pipa. 🪁❌ Voltando ao início da Fase 5.");
+                    subLevel = 1;
+                    initSubLevel();
+                }
+            }, 1000);
+        }
+
+        function checkAnswer(selectedColor) {
+            clearInterval(timerInterval);
+
+            if (selectedColor === finalColor) {
+                if (subLevel < 5) {
+                    alert(`Boa, humano de visão rápida! Sub-fase ${subLevel} concluída. Avançando... 🚀`);
+                    subLevel++;
+                    initSubLevel();
+                } else {
+                    alert("Sensacional! Você conquistou a Figurinha Rara: Pipa Arco-Íris! 🏆 Fase 5 Completa!");
+                    // window.location.href = "fase6.html";
+                }
+            } else {
+                alert(`Errou feio! A última cor era a do botão ${finalColor}. Reiniciando Fase 5...`);
+                subLevel = 1;
+                initSubLevel();
+            }
+        }
+
+        window.onload = initSubLevel;
+    </script>
+</body>
+  </html>
+

@@ -25,6 +25,41 @@
             overflow-x: hidden;
         }
 
+        /* TELA DE INTRODUÇÃO EM VÍDEO OVERLAY */
+        #video-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        #video-overlay video {
+            width: 100%;
+            max-width: 400px;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        .btn-skip {
+            margin-top: 20px;
+            background: rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            padding: 10px 20px;
+            border-radius: 20px;
+            color: #334155;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* CONTAINER DO JOGO */
         .game-container {
             background: rgba(255, 255, 255, 0.75);
             backdrop-filter: blur(20px);
@@ -34,60 +69,45 @@
             width: 100%;
             max-width: 400px;
             padding: 20px;
-            box-shadow: 0 20px 40px rgba(148, 163, 184, 0.15), 0 1px 3px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 20px 40px rgba(148, 163, 184, 0.15);
             text-align: center;
+            display: none; /* Fica escondido até o vídeo acabar */
         }
 
-        /* CABEÇALHO ESTILO CAPTCHA */
         .captcha-header {
             background: #0070f3;
             padding: 15px;
             border-radius: 16px;
             text-align: left;
             margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(0, 112, 243, 0.2);
             color: #ffffff;
-        }
-
-        .captcha-header span {
-            font-size: 14px;
-            opacity: 0.9;
-            text-transform: uppercase;
-            letter-spacing: 1px;
         }
 
         .captcha-header h2 {
             font-size: 22px;
             font-weight: 700;
-            margin-top: 2px;
+            text-transform: capitalize;
         }
 
-        /* CRONÔMETRO E STATUS */
         .status-bar {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 15px;
-            padding: 0 5px;
         }
 
         .timer-box {
             background: rgba(0, 0, 0, 0.04);
-            color: #334155;
             padding: 6px 14px;
             border-radius: 20px;
             font-size: 14px;
             font-weight: 600;
-            border: 1px solid rgba(0, 0, 0, 0.05);
         }
 
-        .level-box {
-            color: #0070f3;
-            font-weight: bold;
-            font-size: 14px;
+        .timer-box.danger {
+            color: #ef4444;
         }
 
-        /* GRADE DE IMAGENS MATRIZ */
         .image-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -101,9 +121,7 @@
             background: rgba(0, 0, 0, 0.05);
             border-radius: 12px;
             overflow: hidden;
-            cursor: pointer;
             border: 2px solid transparent;
-            transition: transform 0.2s, border-color 0.2s;
         }
 
         .image-tile img {
@@ -112,30 +130,10 @@
             object-fit: cover;
         }
 
-        /* ESTADO SELECIONADO (CHECK) */
         .image-tile.selected {
             border-color: #0070f3;
-            transform: scale(0.96);
         }
 
-        .image-tile.selected::after {
-            content: '✓';
-            position: absolute;
-            top: 5px;
-            left: 5px;
-            background: #0070f3;
-            color: white;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            font-size: 12px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-weight: bold;
-        }
-
-        /* BOTÃO VERIFICAR */
         .btn-verify {
             background: #0070f3;
             color: white;
@@ -145,47 +143,66 @@
             border-radius: 16px;
             font-size: 16px;
             font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-            box-shadow: 0 4px 15px rgba(0, 112, 243, 0.2);
-        }
-
-        .btn-verify:active {
-            background: #0056b3;
-            transform: scale(0.98);
         }
     </style>
 </head>
 <body>
 
-    <div class="game-container">
+    <div id="video-overlay">
+        <video id="intro-video" autoplay playsinline>
+            <source src="intro.mp4" type="video/mp4">
+            Seu navegador não suporta vídeos.
+        </video>
+        <button class="btn-skip" onclick="startGameDisplay()">Pular Introdução ➔</button>
+    </div>
+
+    <div class="game-container" id="main-game">
         <div class="status-bar">
-            <span class="level-box" id="level-display">NÍVEL 1</span>
+            <span style="color:#0070f3; font-weight:bold;" id="level-display">NÍVEL 1</span>
             <span class="timer-box" id="timer-display">Tempo: 15s</span>
         </div>
 
         <div class="captcha-header">
-            <span id="instruction-sub">Selecione todos os quadrados com</span>
+            <span style="font-size:12px; opacity:0.9;">Selecione todos os quadrados com</span>
             <h2 id="instruction-main">Carros</h2>
         </div>
 
-        <div class="image-grid" id="image-grid">
-            </div>
+        <div class="image-grid" id="image-grid"></div>
 
         <button class="btn-verify" onclick="checkVerification()">VERIFICAR HUMANO</button>
     </div>
 
     <script>
+        // LÓGICA DE TRANSIÇÃO DO VÍDEO PARA O JOGO
+        const introVideo = document.getElementById('intro-video');
+        
+        // Quando o vídeo terminar de rodar sozinho, inicia o jogo automaticamente
+        introVideo.onended = function() {
+            startGameDisplay();
+        };
+
+        function startGameDisplay() {
+            document.getElementById('video-overlay').style.display = 'none'; // Esconde o vídeo
+            document.getElementById('main-game').style.display = 'block'; // Mostra o jogo
+            initGame(); // Dispara o cronômetro e a grade do jogo
+        }
+
+        // BANCO DE IMAGENS ESTÁVEIS
         const imgBank = {
             carros: [
-                "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=150&auto=format&fit=crop",
-                "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=150&auto=format&fit=crop",
-                "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=150&auto=format&fit=crop"
+                "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=200",
+                "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=200",
+                "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=200"
             ],
-            animais: [
-                "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=150&auto=format&fit=crop",
-                "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=150&auto=format&fit=crop",
-                "https://images.unsplash.com/photo-1537151625747-768eb6422652?w=150&auto=format&fit=crop"
+            gatos: [
+                "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=200",
+                "https://images.unsplash.com/photo-1561948955-570b270e7c36?w=200",
+                "https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=200"
+            ],
+            pontes: [
+                "https://images.unsplash.com/photo-1513407030348-c9d41992f3e1?w=200",
+                "https://images.unsplash.com/photo-1544913716-df2159f8fc3c?w=200",
+                "https://images.unsplash.com/photo-1449034446853-66c86144b0ad?w=200"
             ]
         };
 
@@ -193,14 +210,20 @@
         let timeLeft = 15;
         let timerInterval;
         let selectedTiles = [];
+        let currentTarget = "";
 
         function initGame() {
             clearInterval(timerInterval);
-            timeLeft = Math.max(15 - (currentLevel * 2), 6);
+            timeLeft = Math.max(15 - Math.floor(currentLevel * 1.5), 5);
             document.getElementById("timer-display").innerText = `Tempo: ${timeLeft}s`;
+            document.getElementById("timer-display").classList.remove("danger");
             document.getElementById("level-display").innerText = `NÍVEL ${currentLevel}`;
             selectedTiles = [];
             
+            const categories = Object.keys(imgBank);
+            currentTarget = categories[Math.floor(Math.random() * categories.length)];
+            document.getElementById("instruction-main").innerText = currentTarget;
+
             startTimer();
             generateGrid();
         }
@@ -208,10 +231,13 @@
         function startTimer() {
             timerInterval = setInterval(() => {
                 timeLeft--;
-                document.getElementById("timer-display").innerText = `Tempo: ${timeLeft}s`;
+                const timerDisplay = document.getElementById("timer-display");
+                timerDisplay.innerText = `Tempo: ${timeLeft}s`;
+                if(timeLeft <= 3) timerDisplay.classList.add("danger");
+
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
-                    alert("O tempo acabou! Você é um robô? 🤖");
+                    alert("O tempo acabou! ⏱️ Reseta para o nível 1.");
                     currentLevel = 1;
                     initGame();
                 }
@@ -221,18 +247,20 @@
         function generateGrid() {
             const grid = document.getElementById("image-grid");
             grid.innerHTML = "";
+            let items = [];
+            const categories = Object.keys(imgBank);
+            
+            for(let i=0; i<3; i++) {
+                items.push({ type: currentTarget, url: imgBank[currentTarget][i] });
+            }
 
-            let items = [
-                { type: 'carro', url: imgBank.carros[0] },
-                { type: 'carro', url: imgBank.carros[1] },
-                { type: 'animal', url: imgBank.animais[0] },
-                { type: 'animal', url: imgBank.animais[1] },
-                { type: 'carro', url: imgBank.carros[2] },
-                { type: 'animal', url: imgBank.animais[2] },
-                { type: 'animal', url: imgBank.animais[0] },
-                { type: 'carro', url: imgBank.carros[1] },
-                { type: 'animal', url: imgBank.animais[1] }
-            ];
+            while(items.length < 9) {
+                let randomCat = categories[Math.floor(Math.random() * categories.length)];
+                if(randomCat !== currentTarget) {
+                    let randomImgIndex = Math.floor(Math.random() * imgBank[randomCat].length);
+                    items.push({ type: randomCat, url: imgBank[randomCat][randomImgIndex] });
+                }
+            }
 
             items.sort(() => Math.random() - 0.5);
 
@@ -246,47 +274,48 @@
                 img.src = item.url;
                 
                 tile.appendChild(img);
-                tile.addEventListener("click", () => toggleSelect(tile, index));
+                tile.addEventListener("click", () => {
+                    tile.classList.toggle("selected");
+                    if (tile.classList.contains("selected")) {
+                        selectedTiles.push(tile);
+                    } else {
+                        selectedTiles = selectedTiles.filter(t => t.dataset.index != index);
+                    }
+                });
                 grid.appendChild(tile);
             });
-        }
-
-        function toggleSelect(tile, index) {
-            tile.classList.toggle("selected");
-            if (tile.classList.contains("selected")) {
-                selectedTiles.push(tile);
-            } else {
-                selectedTiles = selectedTiles.filter(t => t.dataset.index != index);
-            }
         }
 
         function checkVerification() {
             const allTiles = document.querySelectorAll(".image-tile");
             let correct = true;
+            let selectedTargetCount = 0;
 
             allTiles.forEach(tile => {
-                const isCarro = tile.dataset.type === 'carro';
+                const isTarget = tile.dataset.type === currentTarget;
                 const isSelected = tile.classList.contains("selected");
-
-                if ((isCarro && !isSelected) || (!isCarro && isSelected)) {
-                    correct = false;
-                }
+                if (isTarget && isSelected) selectedTargetCount++;
+                if ((isTarget && !isSelected) || (!isTarget && isSelected)) correct = false;
             });
 
-            if (correct) {
+            if (correct && selectedTargetCount > 0) {
                 clearInterval(timerInterval);
-                alert("Verificação bem-sucedida! Próximo nível... 🚀");
-                currentLevel++;
-                initGame();
+                
+                if (currentLevel === 3) {
+                    alert(`Incrível! Você passou da Fase 1. Carregando a Fase 2... 🚀`);
+                    window.location.href = "fase2.html"; 
+                } else {
+                    alert(`Boa! Indo para o Nível ${currentLevel + 1}... 🚀`);
+                    currentLevel++;
+                    initGame();
+                }
             } else {
                 clearInterval(timerInterval);
-                alert("Seleção incorreta! Tente novamente.");
+                alert("Seleção incorreta! Reseta para o nível 1.");
                 currentLevel = 1;
                 initGame();
             }
         }
-
-        window.onload = initGame;
     </script>
 </body>
 </html>

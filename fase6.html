@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fase 6 - O Robô Dançarino Z3</title>
+    <title>Fase 6 - O Contra-Ataque do Coelho</title>
     <style>
-        /* DESIGN PREMIUM DARK NEON */
+        /* DESIGN PREMIUM GLASSMORPHISM COM TOQUE DE FLORESTA (VERDE NEON) */
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; }
         
         body {
-            background: #0f172a;
-            color: #f8fafc;
+            background: #061512;
+            color: #f0fdf4;
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -19,13 +19,13 @@
         }
 
         .game-container {
-            background: rgba(30, 41, 59, 0.7);
+            background: rgba(11, 37, 32, 0.8);
             backdrop-filter: blur(20px);
-            border: 1px solid rgba(56, 189, 248, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.2);
             border-radius: 24px;
             width: 100%; max-width: 400px;
             padding: 20px;
-            box-shadow: 0 0 30px rgba(56, 189, 248, 0.1);
+            box-shadow: 0 0 30px rgba(34, 197, 94, 0.1);
             text-align: center;
         }
 
@@ -37,7 +37,7 @@
         }
 
         .lives { color: #f43f5e; font-size: 18px; letter-spacing: 2px; }
-        .sub-level { background: #38bdf8; color: #0f172a; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 12px; }
+        .sub-level { background: #22c55e; color: #061512; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 12px; }
 
         /* VÍDEO */
         .video-wrapper {
@@ -48,7 +48,7 @@
             margin-bottom: 20px;
             position: relative;
             overflow: hidden;
-            border: 2px solid #38bdf8;
+            border: 2px solid #22c55e;
         }
 
         .video-wrapper video { width: 100%; height: 100%; object-fit: cover; }
@@ -63,7 +63,7 @@
         }
         .timer-fill {
             width: 100%; height: 100%;
-            background: #38bdf8;
+            background: #22c55e;
             transition: width 1s linear;
         }
 
@@ -79,12 +79,12 @@
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 12px;
-            padding: 10px;
+            padding: 12px;
             cursor: pointer;
             transition: 0.2s;
         }
 
-        .sticker-card:active { transform: scale(0.9); background: rgba(56, 189, 248, 0.2); }
+        .sticker-card:active { transform: scale(0.9); background: rgba(34, 197, 94, 0.2); }
         .sticker-card span { font-size: 35px; display: block; }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -105,8 +105,8 @@
         </div>
 
         <div id="challenge-area">
-            <p style="font-size: 14px; margin-bottom: 10px; color: #38bdf8; font-weight: bold;">TESTE HUMANO DOS DETALHES</p>
-            <p style="font-size: 13px; margin-bottom: 15px; color: #94a3b8;">Qual figurinha corresponde ao detalhe que mudou no clipe?</p>
+            <p style="font-size: 15px; margin-bottom: 5px; color: #22c55e; font-weight: bold;">TESTE HUMANO DA FLORESTA 🌲</p>
+            <p style="font-size: 13px; margin-bottom: 15px; color: #a7f3d0;">Quem apareceu aprontando no vídeo?</p>
             
             <div class="timer-container">
                 <div class="timer-fill" id="timer-bar"></div>
@@ -123,13 +123,13 @@
         let timeLeft = 10;
         let timerInterval;
 
-        // Desafios baseados em observação rápida
+        // Desafios baseados nas figurinhas dos animais do curta!
         const challenges = [
-            { correct: '👕💖', options: ['👕💙', '👕💖', '🎧', '👟', '🧢'] },
-            { correct: '🎧', options: ['🤖', '🎧', '👓', '🔋', '📱'] },
-            { correct: '🕺✨', options: ['🕺', '🕺✨', '💃', '🕴️', '👶'] },
-            { correct: '🛹', options: ['👟', '🚲', '🛹', '🚗', '🛴'] },
-            { correct: '🧤', options: ['🧤', '💍', '⌚', '🦾', '🍭'] }
+            { correct: '🐇', options: ['🦁', '🐇', '🤖', '🦊', '🐱'], msg: 'O Coelho Gigante apareceu!' },
+            { correct: '🐿️', options: ['🐶', '🐹', '🐿️', '🐼', '🐨'], msg: 'O Esquilo travesso correu!' },
+            { correct: '🐦', options: ['🐸', '🐢', '🐦', '🐍', '🐙'], msg: 'O Passarinho voou na tela!' },
+            { correct: '🍎', options: ['🍌', '🍎', '🍇', '🍉', '🥑'], msg: 'A fruta caiu da árvore!' },
+            { correct: '🦋', options: ['🐝', '🕷️', '🦋', '🦂', '🦟'], msg: 'A Borboleta pousou perto do coelho!' }
         ];
 
         function startSubLevel() {
@@ -143,7 +143,7 @@
             video.currentTime = 0;
             video.play();
 
-            // O vídeo de teste roda por 6 segundos e depois abre o desafio de memória
+            // O vídeo roda por 6 segundos chamando a atenção do jogador
             setTimeout(() => {
                 videoStage.style.display = 'none';
                 challengeArea.style.display = 'block';
@@ -161,7 +161,7 @@
                 const card = document.createElement('div');
                 card.className = 'sticker-card';
                 card.innerHTML = `<span>${opt}</span>`;
-                card.onclick = () => checkAnswer(opt === current.correct);
+                card.onclick = () => checkAnswer(opt === current.correct, current.msg);
                 container.appendChild(card);
             });
         }
@@ -176,25 +176,25 @@
                 bar.style.width = (timeLeft * 10) + '%';
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
-                    handleError("⏰ Tempo esgotado! Olhos mais rápidos são necessários.");
+                    handleError("⏰ O tempo voou! Os esquilos fugiram.");
                 }
             }, 1000);
         }
 
-        function checkAnswer(isCorrect) {
+        function checkAnswer(isCorrect, successMsg) {
             clearInterval(timerInterval);
             if (isCorrect) {
                 if (subLevel < 5) {
-                    alert("✨ Excelente percepção! Avançando de nível...");
+                    alert(`✨ Acertou! ${successMsg} Avançando de nível...`);
                     subLevel++;
                     document.getElementById('sub-level-display').innerText = `SUB-FASE ${subLevel}/5`;
                     startSubLevel();
                 } else {
-                    alert("🏆 SENSACIONAL! Você superou o algoritmo do Robô Z3 e ganhou a Figurinha Neon! 🤖🕺");
+                    alert("🏆 MEMÓRIA IMPECÁVEL! Você coletou a Figurinha Rara do Coelho Gigante! 🐇🎒");
                     // window.location.href = "fase7.html";
                 }
             } else {
-                handleError("❌ Detalhe incorreto! A IA enganou sua visão. Perdeu 1 vida.");
+                handleError("❌ Humano enganado! Esse animal não estava na cena. Perdeu 1 vida.");
             }
         }
 
@@ -202,7 +202,7 @@
             lives--;
             updateLives();
             if (lives <= 0) {
-                alert("💀 GAME OVER! O Robô Z3 venceu. Reiniciando a fase.");
+                alert("💀 GAME OVER! Os animais da floresta te venceram. Reiniciando a fase.");
                 location.reload();
             } else {
                 alert(msg);

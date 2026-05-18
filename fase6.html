@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fase 6 - O Robô Dançarino Z3</title>
+    <style>
+        /* DESIGN PREMIUM DARK NEON (Para o tema de Robôs) */
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            background: #0f172a;
+            color: #f8fafc;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+        }
+
+        .game-container {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: 24px;
+            width: 100%; max-width: 400px;
+            padding: 20px;
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.1);
+            text-align: center;
+        }
+
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .lives { color: #f43f5e; font-size: 18px; letter-spacing: 2px; }
+        .sub-level { background: #38bdf8; color: #0f172a; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 12px; }
+
+        /* VÍDEO */
+        .video-wrapper {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #38bdf8;
+        }
+
+        .video-wrapper video { width: 100%; height: 100%; object-fit: cover; }
+
+        /* PERGUNTA */
+        #challenge-area { display: none; animation: fadeIn 0.5s; }
+        
+        .timer-container {
+            width: 100%; height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px; margin-bottom: 20px; overflow: hidden;
+        }
+        .timer-fill {
+            width: 100%; height: 100%;
+            background: #38bdf8;
+            transition: width 1s linear;
+        }
+
+        /* FIGURINHAS (5 opções nesta fase) */
+        .stickers-list {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .sticker-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .sticker-card:active { transform: scale(0.9); background: rgba(56, 189, 248, 0.2); }
+        .sticker-card span { font-size: 35px; display: block; }
+        .sticker-card label { font-size: 10px; color: #94a3b8; text-transform: uppercase; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <div class="hud">
+            <span class="sub-level" id="sub-level-display">SUB-FASE 1/5</span>
+            <div class="lives" id="lives-display">❤️❤️❤️</div>
+        </div>
+
+        <div class="video-wrapper" id="video-stage">
+            <video id="game-video" autoplay muted playsinline>
+                <source src="v6.mp4" type="video/mp4">
+            </video>
+        </div>
+
+        <div id="challenge-area">
+            <p style="font-size: 14px; margin-bottom: 10px;">O que mudou no final do vídeo?</p>
+            <div class="timer-container">
+                <div class="timer-fill" id="timer-bar"></div>
+            </div>
+
+            <div class="stickers-list" id="options">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        let subLevel = 1;
+        let lives = 3;
+        let timeLeft = 10;
+        let timerInterval;
+
+        const challenges = [
+            { correct: '👕💖', options: ['👕💙', '👕💖', '🎧', '👟', '🧢'], msg: 'Camiseta mudou para Rosa!' },
+            { correct: '🎧', options: ['🤖', '🎧', '👓', '🔋', '📱'], msg: 'Robô ganhou fones!' },
+            { correct: '🕺✨', options: ['🕺', '🕺✨', '💃', '🕴️', '👶'], msg: 'Humano brilhou no final!' },
+            { correct: '🛹', options: ['👟', '🚲', '🛹', '🚗', '🛴'], msg: 'Robô apareceu de skate!' },
+            { correct: '🧤', options: ['🧤', '💍', '⌚', '🦾', '🍭'], msg: 'Humano trocou a luva!' }
+        ];
+
+        function startSubLevel() {
+            const video = document.getElementById('game-video');
+            const challengeArea = document.getElementById('challenge-area');
+            const videoStage = document.getElementById('video-stage');
+            
+            challengeArea.style.display = 'none';
+            videoStage.style.display = 'block';
+            video.play();
+
+            // Simula o fim do vídeo (5 segundos)
+            setTimeout(() => {
+                videoStage.style.display = 'none';
+                challengeArea.style.display = 'block';
+                renderOptions();
+                startTimer();
+            }, 5000);
+        }
+
+        function renderOptions() {
+            const container = document.getElementById('options');
+            container.innerHTML = '';
+            const current = challenges[subLevel - 1];
+
+            current.options.forEach(opt => {
+                const card = document.createElement('div');
+                card.className = 'sticker-card';
+                card.innerHTML = `<span>${opt}</span>`;
+                card.onclick = () => checkAnswer(opt === current.correct);
+                container.appendChild(card);
+            });
+        }
+
+        function startTimer() {
+            timeLeft = 10;
+            const bar = document.getElementById('timer-bar');
+            bar.style.width = '100%';
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                bar.style.width = (timeLeft * 10) + '%';
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    handleError("⏰ Tempo esgotado! Humano lento demais.");
+                }
+            }, 1000);
+        }
+
+        function checkAnswer(isCorrect) {
+            clearInterval(timerInterval);
+            if (isCorrect) {
+                if (subLevel < 5) {
+                    alert("✨ Detalhe percebido! Próxima sub-fase...");
+                    subLevel++;
+                    document.getElementById('sub-level-display').innerText = `SUB-FASE ${subLevel}/5`;
+                    startSubLevel();
+                } else {
+                    alert("🏆 VOCÊ VENCEU O Z3! Figurinha 'Robô Dançarino' coletada!");
+                    // window.location.href = "fase7.html";
+                }
+            } else {
+                handleError("❌ Você não viu a mudança! Perdeu 1 vida.");
+            }
+        }
+
+        function handleError(msg) {
+            lives--;
+            updateLives();
+            if (lives <= 0) {
+                alert("💀 GAME OVER! Retornando ao início da Fase 6.");
+                location.reload();
+            } else {
+                alert(msg);
+                startSubLevel();
+            }
+        }
+
+        function updateLives() {
+            let h = "";
+            for(let i=0; i<3; i++) h += (i < lives) ? "❤️" : "🖤";
+            document.getElementById('lives-display').innerText = h;
+        }
+
+        window.onload = startSubLevel;
+    </script>
+</body>
+</html>
+

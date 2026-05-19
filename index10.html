@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador - Vídeo 10</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #12141c;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 16px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        h2 {
+            font-size: 1.2rem;
+            margin-bottom: 16px;
+            color: #ffffff;
+        }
+        video {
+            width: 100%;
+            border-radius: 12px;
+            border: 2px solid #5A4486;
+            background-color: #000;
+        }
+        .btn-back {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 24px;
+            background-color: #5A4486;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Tutorial - Módulo 10</h2>
+        <video controls playsinline>
+            <source src="video10.mp4" type="video/mp4">
+            Seu navegador não suporta a reprodução de vídeo.
+        </video>
+        <a href="index.html" class="btn-back">← Voltar ao Menu</a>
+    </div>
+
+</body>
+</html>

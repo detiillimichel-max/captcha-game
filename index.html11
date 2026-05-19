@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Central de Vídeos e Índices</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 16px;
+            background-color: #12141c;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .header {
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            font-size: 1.4rem;
+            margin: 0 0 8px 0;
+            color: #ffffff;
+        }
+        .header p {
+            font-size: 0.85rem;
+            color: #8e92a4;
+            margin: 0;
+        }
+        .grid-container {
+            width: 100%;
+            max-width: 500px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            box-sizing: border-box;
+        }
+        .card-index {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px 12px;
+            text-align: center;
+            text-decoration: none;
+            color: #ffffff;
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        /* Efeito de clique com a nova cor padrão */
+        .card-index:active {
+            background: rgba(90, 68, 134, 0.2);
+            border-color: #5A4486;
+            transform: scale(0.98);
+        }
+        .icon-play {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: rgba(90, 68, 134, 0.15);
+            color: #5A4486;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 8px;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Central de Conteúdo</h1>
+        <p>Selecione o índice para reproduzir o vídeo correspondente</p>
+    </div>
+
+    <div class="grid-container">
+        <a href="index1.html" class="card-index">
+            <div class="icon-play">▶</div>
+            Índice 01
+        </a>
+        <a href="index2.html" class="card-index">
+            <div class="icon-play">▶</div>
+            Índice 02
+        </a>
+        <a href="index3.html" class="card-index">
+            <div class="icon-play">▶</div>
+            Índice 03
+        </a>
+        <a href="index4.html" class="card-index">
+            <div class="icon-play">▶</div>
+            Índice 04
+        </a>
+        <a href="index5.html" class="card-index">
+            <div class="icon-play">▶</div>
+            Índice 05
+        </a>
+        <a href="index6.html" class="card-index">
+            <div class="icon-play">▶</div>
+            Índice 06
+        </a>
+        <a href="index7.html" class="card-index">
+            <div class="icon-play">▶</div>
+            Índice 07
+        </a>
+        <a href="index8.html" class="card-index">
+            <div class="icon-play">▶</div>
+            Índice 08
+        </a>
+        <a href="index9.html" class="card-index" style="border-color: rgba(90, 68, 134, 0.4);">
+            <div class="icon-play" style="background-color: #5A4486; color: #fff;">▶</div>
+            Índice 09
+        </a>
+        <a href="index10.html" class="card-index" style="border-color: rgba(90, 68, 134, 0.4);">
+            <div class="icon-play" style="background-color: #5A4486; color: #fff;">▶</div>
+            Índice 10
+        </a>
+    </div>
+
+</body>
+</html>

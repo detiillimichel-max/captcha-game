@@ -1,932 +1,426 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>CAPTCHA HUMANO: 10 FASES</title>
+<!-- Playables SDK -->
+<script>// Playables SDK v1.0.0
+// Game lifecycle bridge: rAF-based game-ready detection + event communication
+(function() {
+  'use strict';
+
+  // Idempotency: skip if already initialized (e.g., server-side injection
+  // followed by client-side inject-javascript via the Bloks webview component).
+  if (window.playablesSDK) return;
+
+  var HANDLER_NAME = 'playablesGameEventHandler';
+  var ANDROID_BRIDGE_NAME = '_MetaPlayablesBridge';
+  var RAF_FRAME_THRESHOLD = 3;
+
+  var gameReadySent = false;
+  var firstInteractionSent = false;
+  var errorSent = false;
+  var frameCount = 0;
+  var originalRAF = window.requestAnimationFrame;
+
+  // --- Transport Layer ---
+
+  function hasIOSBridge() {
+    return !!(window.webkit &&
+              window.webkit.messageHandlers &&
+              window.webkit.messageHandlers[HANDLER_NAME]);
+  }
+
+  function hasAndroidBridge() {
+    return !!(window[ANDROID_BRIDGE_NAME] &&
+              typeof window[ANDROID_BRIDGE_NAME].postEvent === 'function');
+  }
+
+  function isInIframe() {
+    return !!(window.parent && window.parent !== window);
+  }
+
+  function sendEvent(eventName, payload) {
+    var message = {
+      type: eventName,
+      payload: payload || {},
+      timestamp: Date.now()
+    };
+
+    if (hasIOSBridge()) {
+      try {
+        window.webkit.messageHandlers[HANDLER_NAME].postMessage(message);
+      } catch (e) { /* ignore */ }
+      return;
+    }
+
+    if (hasAndroidBridge()) {
+    try {
+      var p = payload || {};
+      p.__secureToken = window.__fbAndroidBridgeAuthToken || '';
+      p.timestamp = message.timestamp;
+      window[ANDROID_BRIDGE_NAME].postEvent(
+        eventName,
+        JSON.stringify(p)
+      );
+    } catch (e) { /* ignore */ }
+    return;
+  }
+
+    if (isInIframe()) {
+      try {
+        window.parent.postMessage(message, '*');
+      } catch (e) { /* ignore */ }
+      return;
+    }
+  }
+
+  // --- rAF Game-Ready Detection ---
+
+  function onFrame() {
+    if (gameReadySent) return;
+
+    frameCount++;
+    if (frameCount >= RAF_FRAME_THRESHOLD) {
+      gameReadySent = true;
+      sendEvent('game_ready', {
+        frame_count: frameCount,
+        detected_at: Date.now()
+      });
+      return;
+    }
+
+    originalRAF.call(window, onFrame);
+  }
+
+  if (originalRAF) {
+    window.requestAnimationFrame = function(callback) {
+      if (!gameReadySent) {
+        return originalRAF.call(window, function(timestamp) {
+          frameCount++;
+          if (frameCount >= RAF_FRAME_THRESHOLD && !gameReadySent) {
+            gameReadySent = true;
+            sendEvent('game_ready', {
+              frame_count: frameCount,
+              detected_at: Date.now()
+            });
+          }
+          callback(timestamp);
+        });
+      }
+      return originalRAF.call(window, callback);
+    };
+  }
+
+  // --- First User Interaction Detection ---
+
+  function setupFirstInteractionDetection() {
+    var events = ['touchstart', 'mousedown', 'keydown'];
+
+    function onFirstInteraction() {
+      if (firstInteractionSent) return;
+      firstInteractionSent = true;
+      sendEvent('user_interaction_start', null);
+
+      for (var i = 0; i < events.length; i++) {
+        document.removeEventListener(events[i], onFirstInteraction, true);
+      }
+    }
+
+    for (var i = 0; i < events.length; i++) {
+      document.addEventListener(events[i], onFirstInteraction, true);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupFirstInteractionDetection);
+  } else {
+    setupFirstInteractionDetection();
+  }
+
+  // --- Auto Error Capture ---
+
+  window.addEventListener('error', function(event) {
+    if (errorSent) return;
+    errorSent = true;
+    sendEvent('error', {
+      message: event.message || 'Unknown error',
+      source: event.filename || '',
+      lineno: event.lineno || 0,
+      colno: event.colno || 0,
+      auto_captured: true
+    });
+  });
+
+  window.addEventListener('unhandledrejection', function(event) {
+    if (errorSent) return;
+    errorSent = true;
+    var reason = event.reason;
+    sendEvent('error', {
+      message: (reason instanceof Error) ? reason.message : String(reason),
+      type: 'unhandled_promise_rejection',
+      auto_captured: true
+    });
+  });
+
+  // --- Public API ---
+
+  window.playablesSDK = {
+    complete: function(score) {
+      sendEvent('game_ended', {
+        score: score,
+        completed: true
+      });
+    },
+
+    error: function(message) {
+      if (errorSent) return;
+      errorSent = true;
+      sendEvent('error', {
+        message: message || 'Unknown error',
+        auto_captured: false
+      });
+    },
+
+    sendEvent: function(eventName, payload) {
+      if (!eventName || typeof eventName !== 'string') return;
+      sendEvent(eventName, payload);
+    }
+  };
+
+  // Kick off rAF detection in case no game code calls rAF immediately
+  if (originalRAF) {
+    originalRAF.call(window, onFrame);
+  }
+})();</script>
+<!-- PLAYABLE_TOUCH_PATCH_V1 --><script>
+(function() {
+  if (window.__playableTouchPatchInstalled) return;
+  window.__playableTouchPatchInstalled = true;
+  var origAdd = EventTarget.prototype.addEventListener;
+  var blockedTypes = { touchstart: 1, touchmove: 1, wheel: 1 };
+  EventTarget.prototype.addEventListener = function(type, listener, options) {
+    if (blockedTypes[type]) {
+      if (options === undefined || options === null) {
+        options = { passive: true };
+      } else if (typeof options === 'boolean') {
+        options = { capture: options, passive: true };
+      } else {
+        options = Object.assign({}, options, { passive: true });
+      }
+    }
+    return origAdd.call(this, type, listener, options);
+  };
+})();
+</script><script>window.Intl=window.Intl||{};Intl.t=function(s){return(Intl._locale&&Intl._locale[s])||s;};</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CAPTCHA 10 Fases</title>
 <style>
-  :root{
-    --bg-1:#050b18;
-    --bg-2:#0a1630;
-    --accent:#7df9ff;
-    --accent-2:#a855f7;
-    --good:#22c55e;
-    --bad:#ef4444;
-    --warn:#facc15;
-    --glass: rgba(255,255,255,0.08);
-    --glass-2: rgba(255,255,255,0.12);
-    --text:#e6f1ff;
-    --text-dim:#8aa0c7;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
-  body{
-    font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;
-    background: radial-gradient(1200px 800px at 10% -10%,#1a2a5a 0%,transparent 60%),
-                radial-gradient(1000px 600px at 110% 10%,#5b21b6 0%,transparent 55%),
-                linear-gradient(180deg,var(--bg-1),var(--bg-2));
-    color:var(--text);
-    display:flex;align-items:center;justify-content:center;
-    padding:16px;
-    overflow:hidden;
-  }
-  .app{
-    width:100%;max-width:980px;height:min(900px,94vh);
-    display:grid;grid-template-rows:auto 1fr auto;gap:14px;
-  }
-  .hud{
-    display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;
-  }
-  .panel{
-    background: var(--glass);
-    backdrop-filter: blur(16px) saturate(140%);
-    -webkit-backdrop-filter: blur(16px) saturate(140%);
-    border:1px solid rgba(255,255,255,0.12);
-    border-radius:20px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06);
-  }
-  .hud .panel{padding:10px 14px;display:flex;align-items:center;gap:10px}
-  .pill{
-    display:inline-flex;align-items:center;gap:6px;
-    padding:6px 10px;border-radius:999px;
-    background: rgba(0,0,0,0.35);
-    border:1px solid rgba(255,255,255,0.08);
-    font-weight:600;font-size:14px;
-    color:var(--text);
-  }
-  .lives{display:flex;gap:4px}
-  .heart{font-size:18px;filter:drop-shadow(0 0 6px rgba(239,68,68,.6));opacity:.95}
-  .heart.lost{opacity:.25;filter:grayscale(100%);}
-  .score{font-variant-numeric:tabular-nums}
-  .phase-badge{
-    background: linear-gradient(135deg,var(--accent),var(--accent-2));
-    color:#001018;font-weight:800;letter-spacing:.5px;
-    padding:6px 12px;border-radius:999px;font-size:13px;
-    box-shadow:0 0 20px rgba(125,249,255,.35);
-  }
-  .game-wrap{position:relative;overflow:hidden}
-  .board{
-    position:absolute;inset:0;
-    display:flex;flex-direction:column;
-    padding:18px;gap:14px;
-  }
-  .title-row{
-    display:flex;align-items:center;justify-content:space-between;gap:10px;
-  }
-  .title-row h2{
-    font-size:clamp(18px,2.6vw,26px);line-height:1.1;
-    text-shadow:0 0 20px rgba(125,249,255,.25);
-  }
-  .desc{
-    color:var(--text-dim);font-size:14px
-  }
-  .play-area{
-    flex:1;position:relative;
-    background: linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));
-    border:1px solid rgba(255,255,255,.08);
-    border-radius:18px;
-    overflow:hidden;
-    display:flex;align-items:center;justify-content:center;
-    padding:12px;
-  }
-  .grid{
-    display:grid;gap:10px;place-content:center;
-  }
-  .btn{
-    appearance:none;border:none;cursor:pointer;
-    padding:12px 18px;border-radius:14px;
-    font-weight:700;font-size:15px;color:#021018;
-    background:linear-gradient(135deg,var(--accent),#4ade80);
-    box-shadow:0 8px 24px rgba(125,249,255,.25), inset 0 1px 0 rgba(255,255,255,.6);
-    transition:transform .08s ease, filter .2s ease;
-  }
-  .btn:active{transform:translateY(1px) scale(.98)}
-  .btn.ghost{
-    background:rgba(255,255,255,.06);color:var(--text);
-    border:1px solid rgba(255,255,255,.12);
-    box-shadow:none;
-  }
-  .btn.bad{background:linear-gradient(135deg,#f87171,#ef4444);color:#fff}
-  .btn:disabled{opacity:.5;cursor:not-allowed}
-  .overlay{
-    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-    background: rgba(3,8,20,.75);
-    backdrop-filter: blur(10px);
-    z-index:10;
-    padding:20px;
-  }
-  .card{
-    width:min(560px,92vw);
-    background: linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.05));
-    border:1px solid rgba(255,255,255,.14);
-    border-radius:24px;
-    padding:28px;
-    box-shadow:0 20px 80px rgba(0,0,0,.6);
-    text-align:center;
-  }
-  .logo{
-    font-size:clamp(28px,5vw,44px);font-weight:900;letter-spacing:.5px;
-    background:linear-gradient(135deg,#fff,var(--accent));
-    -webkit-background-clip:text;background-clip:text;color:transparent;
-    text-shadow:0 0 30px rgba(125,249,255,.2);
-  }
-  .subtitle{color:var(--text-dim);margin-top:6px}
-  .stats{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:18px 0}
-  .stat{min-width:110px}
-  .stat .k{font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em}
-  .stat .v{font-size:22px;font-weight:800}
-  .actions{display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap}
-  .foot{
-    display:flex;align-items:center;justify-content:space-between;gap:10px;
-    padding:10px 14px;
-    color:var(--text-dim);font-size:12px
-  }
-  .foot strong{color:var(--text)}
-  /* Simon */
-  .simon{
-    display:grid;grid-template-columns:1fr 1fr;gap:14px;
-    width:min(420px,86vw);aspect-ratio:1/1;
-  }
-  .pad{
-    border-radius:20px;position:relative;overflow:hidden;
-    border:2px solid rgba(255,255,255,.12);
-    box-shadow: inset 0 0 30px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
-    cursor:pointer;transition:transform .08s ease, filter .15s;
-    display:flex;align-items:center;justify-content:center;
-    font-size:clamp(36px,8vw,56px);
-  }
-  .pad:active{transform:scale(.97)}
-  .pad.flash{filter:brightness(1.8) saturate(1.4);box-shadow:0 0 40px currentColor}
-  .pad.red{background:radial-gradient(circle at 30% 30%,#ff7b7b,#b91c1c);color:#ffadad}
-  .pad.blue{background:radial-gradient(circle at 30% 30%,#7db8ff,#1d4ed8);color:#b9daff}
-  .pad.green{background:radial-gradient(circle at 30% 30%,#7fffb0,#15803d);color:#cffff0}
-  .pad.yellow{background:radial-gradient(circle at 30% 30%,#ffef8a,#ca8a04);color:#fff7c2}
-  /* Intruder */
-  .intruder-grid{
-    display:grid;gap:8px;
-    grid-template-columns:repeat(6, minmax(0,1fr));
-    width:min(600px,92vw);
-  }
-  .cell{
-    aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;
-    font-size:clamp(24px,5vw,40px);
-    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
-    border-radius:14px;cursor:pointer;user-select:none;
-    transition:transform .08s, background .2s;
-  }
-  .cell:hover{background:rgba(255,255,255,.12)}
-  .cell:active{transform:scale(.95)}
-  /* Slide puzzle */
-  .slide{
-    display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
-    width:min(360px,84vw);aspect-ratio:1/1;
-  }
-  .tile{
-    display:flex;align-items:center;justify-content:center;
-    font-size:clamp(32px,7vw,48px);
-    border-radius:14px;background:rgba(255,255,255,.08);
-    border:1px solid rgba(255,255,255,.12);
-    cursor:pointer;user-select:none;transition:transform .1s;
-  }
-  .tile.empty{background:transparent;border:1px dashed rgba(255,255,255,.15);cursor:default}
-  .tile:not(.empty):active{transform:scale(.96)}
-  /* Sticker select */
-  .stickers{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;max-width:640px}
-  .sticker{
-    font-size:clamp(36px,8vw,56px);
-    padding:14px 16px;border-radius:16px;
-    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
-    cursor:pointer;transition:transform .08s, background .2s;
-  }
-  .sticker:hover{background:rgba(255,255,255,.12)}
-  .sticker:active{transform:scale(.94)}
-  /* Reaction */
-  .react-box{
-    width:min(480px,90vw);height:min(320px,50vh);
-    border-radius:20px;display:flex;align-items:center;justify-content:center;
-    font-size:clamp(28px,6vw,48px);font-weight:900;
-    background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.12);
-    cursor:pointer;user-select:none;text-align:center;padding:20px;
-  }
-  .react-box.ready{background:linear-gradient(135deg,#22c55e,#16a34a);color:#031}
-  .react-box.wait{background:linear-gradient(135deg,#facc15,#eab308);color:#210}
-  .react-box.too-soon{background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff}
-  /* Pattern */
-  .arrows{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
-  .arrow{
-    width:70px;height:70px;display:flex;align-items:center;justify-content:center;
-    font-size:36px;border-radius:16px;background:rgba(255,255,255,.08);
-    border:1px solid rgba(255,255,255,.12);cursor:pointer;user-select:none;
-    transition:transform .08s;
-  }
-  .arrow:active{transform:scale(.94)}
-  .seq-display{display:flex;gap:8px;justify-content:center;margin-bottom:12px;min-height:48px}
-  .seq-item{font-size:32px;opacity:.9;animation:pop .3s ease}
-  @keyframes pop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
-  /* Count */
-  .count-cloud{position:relative;width:min(720px,94vw);height:min(420px,56vh);overflow:hidden;border-radius:16px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.08)}
-  .float-emoji{position:absolute;font-size:clamp(20px,4vw,32px);user-select:none;pointer-events:none;animation:drift linear infinite}
-  @keyframes drift{from{transform:translateY(110%)}to{transform:translateY(-120%)}}
-  .counter{display:flex;align-items:center;gap:10px;margin-top:12px}
-  .counter button{width:48px;height:48px;border-radius:12px;font-size:24px;font-weight:800}
-  .counter .num{min-width:80px;text-align:center;font-size:28px;font-weight:900;font-variant-numeric:tabular-nums}
-  /* Memory cards */
-  .mem-grid{
-    display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
-    width:min(520px,92vw);
-  }
-  .mem-card{
-    aspect-ratio:3/4;perspective:800px;cursor:pointer;
-  }
-  .mem-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .5s}
-  .mem-card.flipped .mem-inner{transform:rotateY(180deg)}
-  .mem-face{
-    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-    border-radius:14px;border:1px solid rgba(255,255,255,.12);
-    backface-visibility:hidden;font-size:clamp(28px,6vw,40px);
-    background:rgba(255,255,255,.08);
-  }
-  .mem-back{transform:rotateY(180deg);background:linear-gradient(135deg,rgba(125,249,255,.2),rgba(168,85,247,.2))}
-  /* Kite */
-  .kite-wrap{display:flex;flex-direction:column;align-items:center;gap:12px}
-  .kite{
-    font-size:clamp(64px,14vw,120px);filter:drop-shadow(0 10px 30px rgba(125,249,255,.25));
-  }
-  .palette{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
-  .swatch{width:56px;height:56px;border-radius:12px;border:2px solid rgba(255,255,255,.2);cursor:pointer}
-  /* Toast */
-  .toast{
-    position:absolute;top:14px;left:50%;transform:translateX(-50%);
-    padding:10px 14px;border-radius:999px;background:rgba(0,0,0,.6);
-    border:1px solid rgba(255,255,255,.12);font-weight:700;font-size:14px;z-index:5;
-    backdrop-filter:blur(8px);opacity:0;pointer-events:none;transition:opacity .2s, transform .2s;
-  }
-  .toast.show{opacity:1;transform:translateX(-50%) translateY(4px)}
-  /* Progress */
-  .progress{height:6px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden}
-  .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2));width:0%;transition:width .3s}
-  /* Responsive */
-  @media (max-width:640px){
-    .hud{grid-template-columns:1fr;gap:8px}
-    .hud .panel{justify-content:space-between}
-    .title-row{flex-direction:column;align-items:flex-start}
-    .mem-grid{grid-template-columns:repeat(3,1fr)}
-  }
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,Segoe UI,Roboto,Arial;background:#0f172a;color:#e2e8f0;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:12px}
+#app{width:min(520px,100%);background:#1e293b;border-radius:18px;box-shadow:0 10px 40px #0007;padding:18px}
+h1{margin:0 0 8px;font-size:28px}
+p{margin:6px 0;color:#94a3b8}
+button{background:#3b82f6;color:#fff;border:0;padding:12px 18px;border-radius:12px;font-weight:700;cursor:pointer;font-size:16px}
+button:active{transform:scale(.97)}
+#hud{display:flex;justify-content:space-between;font-weight:600;margin-bottom:10px;font-size:14px}
+.grid{display:grid;gap:8px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.tile{background:#0f172a;border-radius:12px;padding:18px;text-align:center;font-size:28px;user-select:none;cursor:pointer;border:2px solid transparent}
+.tile:active{transform:scale(.95)}
+.active{border-color:#3b82f6;box-shadow:0 0 0 3px #3b82f633}
+.hidden{opacity:0}
+.center{text-align:center}
+.big{font-size:48px;line-height:1}
+.badge{background:#0f172a;padding:6px 10px;border-radius:999px}
+#game{min-height:240px}
+#react{height:180px;display:flex;align-items:center;justify-content:center;border-radius:14px;font-size:24px;font-weight:800}
+.red{background:#7f1d1d}
+.green{background:#166534}
+.card{background:#0f172a;border-radius:10px;height:70px;display:flex;align-items:center;justify-content:center;font-size:30px;cursor:pointer}
+.flipped{background:#334155}
+.ok{color:#22c55e}
+.bad{color:#ef4444}
 </style>
 </head>
 <body>
-  <div class="app">
-    <header class="hud">
-      <div class="panel">
-        <div class="pill">
-          <span>❤️ Vidas</span>
-          <div class="lives" id="lives"></div>
-        </div>
-        <div class="pill score">⭐ <span id="score">0</span></div>
-      </div>
-      <div class="panel" style="justify-content:center">
-        <span class="phase-badge" id="phaseBadge">FASE 1/10</span>
-      </div>
-      <div class="panel" style="justify-content:flex-end">
-        <div class="pill">🏆 Recorde: <span id="bestPhase">1</span></div>
-      </div>
-    </header>
-
-    <main class="game-wrap panel">
-      <div class="board" id="board">
-        <div class="title-row">
-          <div>
-            <h2 id="phaseTitle">Pronto?</h2>
-            <div class="desc" id="phaseDesc">Prove que você é humano.</div>
-          </div>
-          <button class="btn ghost" id="skipBtn" title="Pular fase (debug)">Pular</button>
-        </div>
-            <div class="progress"><i id="prog"></i></div>
-        <div class="play-area" id="playArea">
-          <!-- dynamic -->
-        </div>
-      </div>
-      <div class="toast" id="toast"></div>
-
-      <!-- Start Overlay -->
-      <div class="overlay" id="startOverlay">
-        <div class="card">
-          <div class="logo">CAPTCHA HUMANO</div>
-          <div class="subtitle">10 fases para provar que você não é um bot. Boa sorte.</div>
-          <div class="stats">
-            <div class="stat">
-              <div class="k">Vidas</div>
-              <div class="v">❤️❤️❤️</div>
-            </div>
-            <div class="stat">
-              <div class="k">Fases</div>
-              <div class="v">10</div>
-            </div>
-            <div class="stat">
-              <div class="k">Recorde</div>
-              <div class="v" id="startBest">1</div>
-            </div>
-          <p style="color:var(--text-dim);font-size:14px;line-height:1.5">
-            Use emoji e reflexos. Errou, perde vida. Zere suas vidas e recomeça. Sem vídeos, tudo em 1 arquivo.
-          </p>
-          <div class="actions">
-            <button class="btn" id="startBtn">INICIAR</button>
-            <button class="btn ghost" id="howBtn">Como jogar?</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Game Over / Victory -->
-      <div class="overlay" id="endOverlay" style="display:none">
-        <div class="card">
-          <div class="logo" id="endTitle">FIM</div>
-          <div class="subtitle" id="endSub">Você foi detectado como bot.</div>
-          <div class="stats">
-            <div class="stat"><div class="k">Pontos</div><div class="v" id="endScore">0</div></div>
-            <div class="stat"><div class="k">Fase</div><div class="v" id="endPhase">1</div></div>
-            <div class="stat"><div class="k">Recorde</div><div class="v" id="endBest">1</div></div>
-          </div>
-          <div class="actions">
-            <button class="btn" id="retryBtn">Tentar novamente</button>
-          </div>
-        </div>
-      </div>
-    </main>
-
-    <footer class="foot panel">
-      <div><strong>CAPTCHA HUMANO: 10 FASES</strong> • UI Glassmorphism Premium</div>
-      <div>Feito com ❤️ e emoji</div>
-    </footer>
+<div id="app">
+  <div id="start" class="center">
+    <h1>CAPTCHA 10 Fases</h1>
+    <p>Prove que você é humano. 10 mini-desafios com emojis.</p>
+    <p>Vidas: ❤️❤️❤️ | Recorde: <b id="best">0</b></p>
+    <button id="btnStart">Iniciar</button>
   </div>
 
+  <div id="play" style="display:none">
+    <div id="hud">
+      <span class="badge">Fase <span id="fase">1</span>/10</span>
+      <span class="badge" id="vidas">❤️❤️❤️</span>
+      <span class="badge">⭐ <span id="pts">0</span></span>
+    </div>
+    <div id="game"></div>
+  </div>
+
+  <div id="over" style="display:none" class="center">
+    <h1 id="overTitle">Fim de Jogo</h1>
+    <p>Pontuação: <b id="finalPts">0</b></p>
+    <p>Recorde: <b id="finalBest">0</b></p>
+    <button id="btnRestart">Jogar Novamente</button>
+  </div>
+</div>
+
 <script>
-(() => {
-  const $ = s => document.querySelector(s);
-  const livesEl = $('#lives');
-  const scoreEl = $('#score');
-  const phaseBadge = $('#phaseBadge');
-  const bestPhaseEl = $('#bestPhase');
-  const startBest = $('#startBest');
-  const phaseTitle = $('#phaseTitle');
-  const phaseDesc = $('#phaseDesc');
-  const playArea = $('#playArea');
-  const prog = $('#prog');
-  const toast = $('#toast');
-  const startOverlay = $('#startOverlay');
-  const endOverlay = $('#endOverlay');
-  const endTitle = $('#endTitle');
-  const endSub = $('#endSub');
-  const endScore = $('#endScore');
-  const endPhase = $('#endPhase');
-  const endBest = $('#endBest');
-  const skipBtn = $('#skipBtn');
+const $=s=>document.getElementById(s);
+const game=$('game');
+let state={fase:0,lives:3,score:0,best:+localStorage.getItem('captcha10best')||0,lock:false,timers:[]};
+$('best').textContent=state.best;
+const clearT=()=>{state.timers.forEach(clearTimeout);state.timers=[];};
+const setLives=()=>{$('vidas').textContent='❤️'.repeat(state.lives)+'🖤'.repeat(3-state.lives)};
+const rnd=a=>a[Math.floor(Math.random()*a.length)];
+const shuffle=a=>a.sort(()=>Math.random()-.5);
 
-  const state = {
-    lives:3,
-    phase:1,
-    score:0,
-    best: Number(localStorage.getItem('captcha_best_phase')||1),
-    lock:false
-  };
-  bestPhaseEl.textContent = state.best;
-  startBest.textContent = state.best;
+function show(sel){
+ $('start').style.display=sel==='start'?'block':'none';
+ $('play').style.display=sel==='play'?'block':'none';
+ $('over').style.display=sel==='over'?'block':'none';
+}
+function lose(msg){
+ if(state.lock)return;
+ state.lives--;setLives();
+ if(state.lives<=0) return gameOver(false);
+ game.innerHTML=`<p class="center bad big">✖</p><p class="center">${msg||'Errou!'}</p>`;
+ state.lock=true;
+ state.timers.push(setTimeout(()=>{state.lock=false;startPhase(state.fase);},1000));
+}
+function win(){
+ state.score+=100;
+ $('pts').textContent=state.score;
+ if(state.fase===9) return gameOver(true);
+ state.fase++;
+ $('fase').textContent=state.fase+1;
+ game.innerHTML=`<p class="center ok big">✔</p>`;
+ state.timers.push(setTimeout(()=>startPhase(state.fase),700));
+}
+function gameOver(ok){
+ clearT();
+ show('over');
+ $('overTitle').textContent= ok?'Você é humano!':'Fim de Jogo';
+ $('finalPts').textContent=state.score;
+ if(state.score>state.best){state.best=state.score;localStorage.setItem('captcha10best',state.best);}
+ $('finalBest').textContent=state.best;
+}
 
-  function showToast(msg, ms=1400){
-    toast.textContent = msg;
-    toast.classList.add('show');
-    clearTimeout(showToast.t);
-    showToast.t = setTimeout(()=>toast.classList.remove('show'), ms);
-  }
-  function updateHUD(){
-    livesEl.innerHTML = '';
-    for(let i=0;i<3;i++){
-      const s = document.createElement('span');
-      s.className = 'heart'+(i<state.lives?'':' lost');
-      s.textContent = '❤️';
-      livesEl.appendChild(s);
-    }
-    scoreEl.textContent = state.score.toLocaleString('pt-BR');
-    phaseBadge.textContent = `FASE ${state.phase}/10`;
-    prog.style.width = ((state.phase-1)/10*100)+'%';
-  }
-  updateHUD();
+function startGame(){
+ state={...state,fase:0,lives:3,score:0,lock:false,timers:[]};
+ setLives();$('pts').textContent=0;$('fase').textContent=1;
+ show('play');startPhase(0);
+}
+function startPhase(i){clearT();game.innerHTML='';[
+p1,p2,p3,p4,p5,p6,p7,p8,p9,p10
+][i]();}
 
-  function setPhaseInfo(title, desc){
-    phaseTitle.textContent = title;
-    phaseDesc.textContent = desc;
-  }
+/* FASE 1 - Simon 3 passos */
+function p1(){
+ const em=['🟥','🟩','🟦','🟨']; const seq=Array.from({length:3},()=>rnd(em));
+ game.innerHTML=`<p class="center">Memorize a sequência</p><div class="grid g4" id="g"></div>`;
+ const g=$('g'); em.forEach(e=>g.innerHTML+=`<div class="tile">${e}</div>`);
+ let idx=0;
+ const flash=()=>{if(idx>=seq.length)return ask(); g.children[em.indexOf(seq[idx])].classList.add('active');
+ state.timers.push(setTimeout(()=>{g.children[em.indexOf(seq[idx])].classList.remove('active');idx++;state.timers.push(setTimeout(flash,250));},600));};
+ flash();
+ function ask(){
+  game.innerHTML=`<p class="center">Repita a sequência</p><div class="grid g4" id="g2"></div>`;
+  const g2=$('g2'); em.forEach(e=>{const d=document.createElement('div');d.className='tile';d.textContent=e;d.onclick=()=>{if(e!==seq.shift())lose('Sequência errada');else if(seq.length===0)win();};g2.appendChild(d);});
+ }
+}
 
-  function clearPlay(){ playArea.innerHTML=''; }
+/* FASE 2 - Intruso */
+function p2(){
+ const base=['🍎','🍊','🍌','🍇','🍓']; const b=rnd(base); let i=rnd(base.filter(x=>x!==b));
+ const cells=Array(9).fill(b); cells[Math.floor(Math.random()*9)]=i;
+ game.innerHTML=`<p class="center">Toque no intruso</p><div class="grid g3" id="g"></div>`;
+ const g=$('g');cells.forEach(c=>{const d=document.createElement('div');d.className='tile';d.textContent=c;d.onclick=()=>c===i?win():lose('Não é o intruso');g.appendChild(d);});
+}
 
-  function success(points=100){
-    if(state.lock) return; state.lock=true;
-    state.score += points;
-    showToast('✅ Humano verificado! +'+points);
-    setTimeout(()=>{
-      state.phase++;
-      if(state.phase>10) return victory();
-      if(state.phase>state.best){
-        state.best = state.phase;
-        localStorage.setItem('captcha_best_phase', state.best);
-        bestPhaseEl.textContent = state.best;
-      }
-      updateHUD();
-      loadPhase(state.phase);
-    }, 700);
-  }
-  function fail(msg='❌ Falhou!'){
-    if(state.lock) return; state.lock=true;
-    state.lives--;
-    updateHUD();
-    showToast(msg+' -1 vida', 1200);
-    setTimeout(()=>{
-      if(state.lives<=0) return gameOver();
-      loadPhase(state.phase);
-    }, 900);
-  }
+/* FASE 3 - Toque no sticker */
+function p3(){
+ const opts=['🐱','🐶','🐸','🐼','🐵','🦊']; const target=rnd(opts);
+ game.innerHTML=`<p class="center">Toque em ${target}</p><div class="grid g3" id="g"></div>`;
+ shuffle([...opts]).forEach(e=>{const d=document.createElement('div');d.className='tile';d.textContent=e;d.onclick=()=>e===target?win():lose();$('g').appendChild(d);});
+}
 
-  function gameOver(){
-    endTitle.textContent = 'DETECTADO';
-    endSub.textContent = 'Parece um bot. Tente novamente.';
-    endScore.textContent = state.score.toLocaleString('pt-BR');
-    endPhase.textContent = state.phase;
-    endBest.textContent = state.best;
-    endOverlay.style.display='flex';
-  }
-  function victory(){
-    endTitle.textContent = 'HUMANO!';
-    endSub.textContent = 'Você passou em todas as 10 fases. Certificado de humanidade concedido.';
-    endScore.textContent = state.score.toLocaleString('pt-BR');
-    endPhase.textContent = '10/10';
-    endBest.textContent = state.best;
-    endOverlay.style.display='flex';
-    prog.style.width='100%';
-  }
+/* FASE 4 - Reação */
+function p4(){
+ game.innerHTML=`<div id="react" class="red">Aguarde...</div><p class="center">Clique quando ficar verde</p>`;
+ const r=$('react'); let ready=false; let early=false;
+ const delay=2000+Math.random()*2000;
+ state.timers.push(setTimeout(()=>{r.className='green';r.textContent='CLIQUE!';ready=true;state.timers.push(setTimeout(()=>{if(ready)lose('Muito lento');},1000));},delay));
+ r.onclick=()=>{if(!ready){early=true;lose('Cedo demais!');}else{ready=false;win();}};
+}
 
-  // Helpers
-  const rand = (a,b)=> Math.floor(Math.random()*(b-a+1))+a;
-  const choice = arr => arr[rand(0,arr.length-1)];
-  const sleep = ms => new Promise(r=>setTimeout(r,ms));
+/* FASE 5 - Contagem */
+function p5(){
+ const e=rnd(['🍎','⭐','💧']); const cnt=3+Math.floor(Math.random()*5);
+ const total=12; const arr=[]; for(let i=0;i<cnt;i++)arr.push(e); while(arr.length<total)arr.push(rnd(['🍎','⭐','💧','🍋'].filter(x=>x!==e)));
+ shuffle(arr);
+ game.innerHTML=`<p class="center">Quantos ${e} ?</p><div class="grid g4" id="g"></div><div class="grid g4" id="opt"></div>`;
+ $('g').innerHTML=arr.map(x=>`<div class="tile">${x}</div>`).join('');
+ [cnt-1,cnt,cnt+1,cnt+2].filter(n=>n>0).slice(0,4).sort((a,b)=>a-b).forEach(n=>{const b=document.createElement('button');b.textContent=n;b.onclick=()=>n===cnt?win():lose();$('opt').appendChild(b);});
+}
 
-  // PHASES
-  const phases = {
-    1: async function(){
-      setPhaseInfo('Fase 1 — Memória Flash','Repita a sequência de cores');
-      clearPlay();
-      const wrap = document.createElement('div');
-      wrap.className='simon';
-      const pads = [
-        {c:'red', e:'🟥'},
-        {c:'blue', e:'🟦'},
-        {c:'green', e:'🟩'},
-        {c:'yellow', e:'🟨'}
-      ];
-      const seq = [];
-      const len = 4;
-      for(let i=0;i<len;i++) seq.push(rand(0,3));
-      let idx=0, accepting=false;
-      pads.forEach((p,i)=>{
-        const d=document.createElement('button');
-        d.className=`pad ${p.c}`; d.textContent=p.e; d.dataset.i=i;
-        d.addEventListener('click',()=>{
-          if(!accepting) return;
-          flash(i,200);
-          if(i===seq[idx]){ idx++; if(idx===seq.length){ accepting=false; success(120);} }
-          else { accepting=false; fail('Sequência errada'); }
-        });
-        wrap.appendChild(d);
-      });
-      playArea.appendChild(wrap);
-      const flash = (i,ms=400)=> {
-        const el = wrap.children[i];
-        el.classList.add('flash');
-        setTimeout(()=>el.classList.remove('flash'), ms);
-      };
-      state.lock=false;
-      showToast('Observe...');
-      await sleep(600);
-      for(const i of seq){ flash(i,500); await sleep(700); }
-      showToast('Sua vez!');
-      accepting=true;
-    },
+/* FASE 6 - Padrão setas */
+function p6(){
+ const seq=['➡️','➡️','⬇️','⬇️']; game.innerHTML=`<p class="center">Complete: ${seq.join(' ') } ?</p><div class="grid g4" id="g"></div>`;
+ ['➡️','⬅️','⬆️','⬇️'].forEach(a=>{const d=document.createElement('div');d.className='tile';d.textContent=a;d.onclick=()=>a==='⬅️'?win():lose();$('g').appendChild(d);});
+}
 
-    2: async function(){
-      setPhaseInfo('Fase 2 — Ache o Intruso','Toque no emoji diferente');
-      clearPlay();
-      const grid = document.createElement('div');
-      grid.className='intruder-grid';
-      playArea.appendChild(grid);
-      const bases = [
-        ['😀','😃','😄','😁'],
-        ['🐶','🐕‍🦺','🐩'],
-        ['🍎','🍏','🍐','🍊'],
-        ['🚗','🚙','🚕','🚓'],
-        ['⭐','🌟','✨','💫']
-      ];
-      const set = choice(bases);
-      const base = set[0];
-      const intruder = choice(set.slice(1));
-      const total = 36;
-      const pos = rand(0,total-1);
-      for(let i=0;i<total;i++){
-        const cell=document.createElement('button');
-        cell.className='cell';
-        cell.textContent = i===pos? intruder : base;
-        cell.onclick = ()=> i===pos? success(100) : fail('Era outro!');
-        grid.appendChild(cell);
-      }
-      state.lock=false;
-    },
+/* FASE 7 - Memória de cor */
+function p7(){
+ const cols=[{c:'#dc2626',e:'🐶'},{c:'#2563eb',e:'🐱'},{c:'#16a34a',e:'🐸'}]; shuffle(cols);
+ game.innerHTML=`<p class="center">Memorize as cores</p><div class="grid g3" id="g"></div>`;
+ const g=$('g'); cols.forEach(o=>{const d=document.createElement('div');d.className='tile';d.style.background=o.c;d.textContent=o.e;g.appendChild(d);});
+ state.timers.push(setTimeout(()=>{
+  const q=rnd(cols);
+  game.innerHTML=`<p class="center">Qual a cor do ${q.e} ?</p><div class="grid g3" id="c"></div>`;
+  cols.forEach(o=>{const d=document.createElement('div');d.className='tile';d.style.background=o.c;d.onclick=()=>o.c===q.c?win():lose();$('c').appendChild(d);});
+ },2000));
+}
 
-    3: async function(){
-      setPhaseInfo('Fase 3 — Quebra-cabeça Deslizante','Ordene os emojis');
-      clearPlay();
-      const emojis = ['🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨',' '];
-      // solvable shuffle
-      let board = [0,1,2,3,4,5,6,7,8];
-      const slide = document.createElement('div');
-      slide.className='slide';
-      playArea.appendChild(slide);
-      const render = ()=>{
-        slide.innerHTML='';
-        board.forEach((v,i)=>{
-          const t=document.createElement('button');
-          t.className='tile'+(v===8?' empty':'');
-          t.textContent = emojis[v];
-          t.onclick = ()=>{
-            const empty = board.indexOf(8);
-            const r1=Math.floor(i/3),c1=i%3, r2=Math.floor(empty/3),c2=empty%3;
-            if(Math.abs(r1-r2)+Math.abs(c1-c2)===1){
-              [board[i],board[empty]]=[board[empty],board[i]];
-              render();
-              if(board.every((v,i)=>v===i)) success(150);
-            }
-          };
-          slide.appendChild(t);
-        });
-      };
-      // shuffle 80 moves
-      for(let m=0;m<80;m++){
-        const empty=board.indexOf(8);
-        const moves=[];
-        [[-1,0],[0,-1],[0,1]].forEach(([dr,dc])=>{
-          const r=Math.floor(empty/3)+dr, c=empty%3+dc;
-          if(r>=0&&r<3&&c>=0&&c<3) moves.push(r*3+c);
-        });
-        const sw = choice(moves);
-        [board[empty],board[sw]]=[board[sw],board[empty]];
-      }
-      render();
-      state.lock=false;
-    },
+/* FASE 8 - Puzzle 3x3 */
+function p8(){
+ let a=[1,2,3,4,5,6,7,8,0]; for(let i=0;i<40;i++){const z=a.indexOf(0);const m=[z-3,z+3,z-1,z+1].filter(p=>p>=0&&p<9&&!(z%3===0&&p===z-1)&&!(z%3===2&&p===z+1));const s=rnd(m);[a[z],a[s]]=[a[s],a[z]];}
+ const render=()=>{game.innerHTML=`<p class="center">Deslize para ordenar 1-8</p><div class="grid g3" id="g"></div>`;const g=$('g');a.forEach((v,i)=>{const d=document.createElement('div');d.className='tile';d.textContent=v||'';d.onclick=()=>move(i);g.appendChild(d);});};
+ const move=i=>{const z=a.indexOf(0);if([z-3,z+3,z-1,z+1].includes(i)&&!(z%3===0&&i===z-1)&&!(z%3===2&&i===z+1)){[a[z],a[i]]=[a[i],a[z]];render();if(a.slice(0,8).every((v,i)=>v===i+1))win();}};
+ render();
+}
 
-    4: async function(){
-      setPhaseInfo('Fase 4 — Memória de Cores (Pipa)','Memorize as cores da pipa');
-      clearPlay();
-      const wrap=document.createElement('div');
-      wrap.className='kite-wrap';
-      const kite=document.createElement('div');
-      kite.className='kite';
-      kite.textContent='🪁';
-      const palette=document.createElement('div');
-      palette.className='palette';
-      const colors=['#ef4444','#22c55e','#3b82f6','#facc15','#a855f7','#06b6d4'];
-      const picks=[choice(colors),choice(colors),choice(colors)];
-      wrap.appendChild(kite);
-      playArea.appendChild(wrap);
-      // Show colors as border flashes
-      state.lock=true;
-      showToast('Memorize as 3 cores');
-      for(const col of picks){
-        kite.style.filter=`drop-shadow(0 0 0 ${col}) drop-shadow(0 0 30px ${col})`;
-        kite.style.color=col;
-        await sleep(900);
-      }
-      kite.style.color='';
-      kite.style.filter='';  
-            // Ask
-      const question=document.createElement('div');
-      question.style.textAlign='center';
-      question.innerHTML='<div class="desc" style="margin-bottom:8px">Qual foi a SEGUNDA cor?</div>';
-      wrap.appendChild(question);
-      palette.innerHTML='';
-      colors.forEach(col=>{
-        const s=document.createElement('button');
-        s.className='swatch'; s.style.background=col;
-        s.onclick=()=> col===picks[1]? success(120) : fail('Cor errada');
-        palette.appendChild(s);
-      });
-      wrap.appendChild(palette);
-      state.lock=false;
-    },
+/* FASE 9 - Pares */
+function p9(){
+ const em=['🍎','🍎','⭐','⭐','🐱','🐱','🚀','🚀']; shuffle(em);
+ let open=[],matched=0;
+ game.innerHTML=`<p class="center">Encontre os pares</p><div class="grid g4" id="g"></div>`;
+ const g=$('g');em.forEach((e,i)=>{const d=document.createElement('div');d.className='card';d.dataset.e=e;d.dataset.i=i;d.textContent='?';d.onclick=()=>flip(d);g.appendChild(d);});
+ function flip(d){
+  if(d.classList.contains('flipped')||open.length===2)return;
+  d.classList.add('flipped');d.textContent=d.dataset.e;open.push(d);
+  if(open.length===2){if(open[0].dataset.e===open[1].dataset.e){matched+=2;open=[];if(matched===8)win();}else{state.timers.push(setTimeout(()=>{open.forEach(x=>{x.classList.remove('flipped');x.textContent='?';});open=[];},600));}}
+ }
+}
 
-    5: async function(){
-      setPhaseInfo('Fase 5 — Sticker Correto','Selecione o sticker pedido');
-      clearPlay();
-      const stickers = ['🍕','🍔','🍟','🌭','🌮','🍩','🍪','🍰','🍿','🥨'];
-      const want = choice(stickers);
-      const prompt=document.createElement('div');
-      prompt.style.textAlign='center';
-      prompt.innerHTML=`<div class="desc">Selecione:</div><div style="font-size:56px;margin:8px 0">${want}</div>`;
-      playArea.appendChild(prompt);
-      const wrap=document.createElement('div');
-      wrap.className='stickers';
-      const options = new Set([want]);
-      while(options.size<8) options.add(choice(stickers));
-      [...options].sort(()=>Math.random()-.5).forEach(em=>{
-        const b=document.createElement('button');
-        b.className='sticker'; b.textContent=em;
-        b.onclick=()=> em===want? success(100) : fail('Sticker errado');
-        wrap.appendChild(b);
-      });
-      playArea.appendChild(wrap);
-      state.lock=false;
-    },
+/* FASE 10 - Boss mix */
+function p10(){
+ const em=['🟥','🟩','🟦','🟨']; const seq=Array.from({length:4},()=>rnd(em));
+ game.innerHTML=`<p class="center">Boss: Repita 4 cores</p><div class="grid g4" id="g"></div>`;
+ const g=$('g'); let i=0;
+ const flash=()=>{if(i>=seq.length)return ask();g.children[em.indexOf(seq[i])].classList.add('active');state.timers.push(setTimeout(()=>{g.children[em.indexOf(seq[i])].classList.remove('active');i++;state.timers.push(setTimeout(flash,180));},400));};
+ em.forEach(e=>g.innerHTML+=`<div class="tile">${e}</div>`); flash();
+ function ask(){game.innerHTML=`<p class="center">Sua vez</p><div class="grid g4" id="g2"></div>`;const g2=$('g2');let idx=0;em.forEach(e=>{const d=document.createElement('div');d.className='tile';d.textContent=e;d.onclick=()=>{if(e!==seq[idx])lose('Boss falhou');else{idx++;if(idx===seq.length)win();}};g2.appendChild(d);});}
+}
 
-    6: async function(){
-      setPhaseInfo('Fase 6 — Reação Rápida','Toque quando ficar VERDE');
-      clearPlay();
-      const box=document.createElement('button');
-      box.className='react-box wait';
-      box.textContent='Aguarde...';
-      playArea.appendChild(box);
-      let ready=false, startTime=0, timeout;
-      const go = ()=>{
-        ready=true; startTime=performance.now();
-        box.className='react-box ready';
-        box.textContent='TOQUE AGORA!';
-      };
-      const schedule = ()=>{
-        box.className='react-box wait';
-        box.textContent='Aguarde...';
-        ready=false;
-        timeout = setTimeout(go, rand(1500,3500));
-      };
-      box.onclick = ()=>{
-        if(state.lock) return;
-        if(!ready){
-          clearTimeout(timeout);
-          box.className='react-box too-soon';
-          box.textContent='Muito cedo!';
-          fail('Cedo demais');
-        }else{
-          const rt = performance.now()-startTime;
-          state.lock=true;
-          if(rt<800){ success(130+Math.max(0,200-Math.floor(rt))); }
-          else { fail('Lento'); }
-        }
-      };
-      schedule();
-      state.lock=false;
-    },
-
-    7: async function(){
-      setPhaseInfo('Fase 7 — Repita o Padrão','Memorize a sequência de setas');
-      clearPlay();
-      const arrows=['⬆️','➡️','⬇️','⬅️'];
-      const seqLen=5;
-      const seq=Array.from({length:seqLen},()=>rand(0,3));
-      const display=document.createElement('div');
-      display.className='seq-display';
-      playArea.appendChild(display);
-      const controls=document.createElement('div');
-      controls.className='arrows';
-      playArea.appendChild(controls);
-      arrows.forEach((a,i)=>{
-        const b=document.createElement('button');
-        b.className='arrow'; b.textContent=a;
-        b.onclick=()=> input(i);
-        controls.appendChild(b);
-      });
-      state.lock=true;
-      showToast('Observe a sequência');
-      for(const i of seq){
-        const s=document.createElement('div');
-        s.className='seq-item'; s.textContent=arrows[i];
-        display.appendChild(s);
-        await sleep(600);
-      }
-      await sleep(300);
-      display.innerHTML='<span class="desc">Sua vez</span>';
-      state.lock=false;
-      let idx=0;
-      function input(i){
-        if(state.lock) return;
-        if(i===seq[idx]){ idx++; if(idx===seq.length) success(140); }
-        else fail('Padrão errado');
-      }
-    },
-
-    8: async function(){
-      setPhaseInfo('Fase 8 — Conte os Objetos','Quantos 🐟 você viu?');
-      clearPlay();
-      const cloud=document.createElement('div');
-      cloud.className='count-cloud';
-      playArea.appendChild(cloud);
-      const targets=['🐟','🐠','🐡','🦈','🐙','🦀'];
-      const target='🐟';
-      let count=0;
-      const total=60;
-      for(let i=0;i<total;i++){
-        const em=document.createElement('span');
-        em.className='float-emoji';
-        const isTarget=Math.random()<0.22;
-        if(isTarget) count++;
-        em.textContent=isTarget?target:choice(targets);
-        em.style.left=rand(0,90)+'%';
-        em.style.animationDuration=rand(6,12)+'s';
-        em.style.animationDelay=rand(-12000,0)+'ms';
-        cloud.appendChild(em);
-      }
-      const counter=document.createElement('div');
-      counter.className='counter';
-      let guess=0;
-      counter.innerHTML=`<button class="btn ghost" id="dec">−</button><div class="num" id="num">0</div><button class="btn ghost" id="inc">+</button><button class="btn" id="ok">Confirmar</button>`;
-      playArea.appendChild(counter);
-      $('#dec').onclick=()=>{guess=Math.max(0,guess-1);$('#num').textContent=guess;};
-      $('#inc').onclick=()=>{guess++;$('#num').textContent=guess;};
-      $('#ok').onclick=()=>{ Math.abs(guess-count)<=1? success(160) : fail(`Era ${count}`); };
-      state.lock=false;
-    },
-
-    9: async function(){
-      setPhaseInfo('Fase 9 — Pares de Memória','Encontre todos os pares');
-      clearPlay();
-      const emojis=['🍎','🍌','🍇','🍓','🍍','🥝'];
-      const deck=[...emojis,...emojis].sort(()=>Math.random()-.5);
-      const grid=document.createElement('div');
-      grid.className='mem-grid';
-      playArea.appendChild(grid);
-      let first=null,lock=false,matched=0;
-      deck.forEach((em,i)=>{
-        const card=document.createElement('div');
-        card.className='mem-card';
-        card.innerHTML=`<div class="mem-inner"><div class="mem-face">❓</div><div class="mem-face mem-back">${em}</div></div>`;
-        card.onclick=()=>{
-          if(lock||card.classList.contains('flipped')||state.lock) return;
-          card.classList.add('flipped');
-          if(!first){ first=card; }
-          else{
-            lock=true;
-            const a=first.querySelector('.mem-back').textContent;
-            const b=card.querySelector('.mem-back').textContent;
-            if(a===b){ matched+=2; first=null; lock=false; if(matched===deck.length) success(200); }
-            else{ setTimeout(()=>{first.classList.remove('flipped');card.classList.remove('flipped');first=null;lock=false;},700); }
-          }
-        };
-        grid.appendChild(card);
-      });
-      state.lock=false;
-    },
-
-    10: async function(){
-      setPhaseInfo('Fase 10 — CHEFE FINAL','Mix de desafios rápidos');
-      clearPlay();
-      const steps=[
-        {name:'Simon 5', fn:miniSimon},
-        {name:'Intruso', fn:miniIntruso},
-        {name:'Reação', fn:miniReact}
-      ];
-      let stepIdx=0;
-      const label=document.createElement('div');
-      label.style.textAlign='center';
-      label.innerHTML=`<div class="desc">Etapa 1/3: ${steps[0].name}</div>`;
-      playArea.appendChild(label);
-      const holder=document.createElement('div');
-      holder.style.marginTop='12px';
-      playArea.appendChild(holder);
-
-      async function next(){
-        if(stepIdx>=steps.length) return success(500);
-        label.innerHTML=`<div class="desc">Etapa ${stepIdx+1}/3: ${steps[stepIdx].name}</div>`;
-        holder.innerHTML='';
-        await steps[stepIdx].fn(holder);
-        stepIdx++;
-        setTimeout(next,400);
-      }
-      state.lock=false;
-      next();
-
-      async function miniSimon(host){
-        const pads=['🟥','🟦','🟩','🟨'];
-        const seq=Array.from({length:5},()=>rand(0,3));
-        const grid=document.createElement('div');
-        grid.style.display='grid';grid.style.gridTemplateColumns='1fr 1fr';grid.style.gap='10px';grid.style.width='min(300px,80vw)';
-        pads.forEach((p,i)=>{
-          const b=document.createElement('button');
-          b.className='pad'; b.style.fontSize='40px'; b.textContent=p;
-          b.onclick=()=>check(i);
-          grid.appendChild(b);
-        });
-        host.appendChild(grid);
-        let idx=0;
-        // flash
-        for(const i of seq){
-          grid.children[i].style.filter='brightness(1.8)';
-          await sleep(350);
-          grid.children[i].style.filter='';
-          await sleep(200);
-        }
-        function check(i){
-          if(i===seq[idx]){ idx++; if(idx===seq.length){ /* done */ } }
-          else fail('Chefe: Simon falhou');
-        }
-        await new Promise(res=>{
-          const iv=setInterval(()=>{ if(idx===seq.length){clearInterval(iv);res();}},100);
-        });
-      }
-      async function miniIntruso(host){
-        const grid=document.createElement('div');
-        grid.className='intruder-grid';
-        grid.style.gridTemplateColumns='repeat(5,1fr)';
-        host.appendChild(grid);
-        const base='🟢', intr='🔵';
-        const pos=rand(0,24);
-        for(let i=0;i<25;i++){
-          const c=document.createElement('button');
-          c.className='cell'; c.textContent=i===pos?intr:base;
-          c.onclick=()=>{ if(i===pos){ /* ok */ } else fail('Chefe: Intruso errado'); };
-          grid.appendChild(c);
-        }
-        await new Promise(res=>{
-          const h= e=>{ if(e.target.textContent===intr) { grid.removeEventListener('click',h,true); res(); } };
-          grid.addEventListener('click',h,true);
-        });
-      }
-      async function miniReact(host){
-        const b=document.createElement('button');
-        b.className='react-box wait'; b.textContent='Aguarde...';
-        host.appendChild(b);
-        await sleep(rand(800,1500));
-        b.className='react-box ready'; b.textContent='TOQUE!';
-        const t=performance.now();
-        await new Promise(res=>{
-          b.onclick=()=>{ const rt=performance.now()-t; if(rt<700) res(); else fail('Chefe: lento'); };
-        });
-      }
-    }
-  };
-
-  function loadPhase(n){
-    state.lock=false;
-    const fn = phases[n];
-    if(fn) fn
-          grid.appendChild(c);
-        }
-        await new Promise(res=>{
-          const h= e=>{ if(e.target.textContent===intr) { grid.removeEventListener('click',h,true); res(); } };
-          grid.addEventListener('click',h,true);
-        });
-      }
-      async function miniReact(host){
-        const b=document.createElement('button');
-        b.className='react-box wait'; b.textContent='Aguarde...';
-        host.appendChild(b);
-        await sleep(rand(800,1500));
-        b.className='react-box ready'; b.textContent='TOQUE!';
-        const t=performance.now();
-        await new Promise(res=>{
-          b.onclick=()=>{ const rt=performance.now()-t; if(rt<700) res(); else fail('Chefe: lento'); };
-        });
-      }
-    }
-  };
-
-  function loadPhase(n){
-    state.lock=false;
-    const fn = phases[n];
-    if(fn) fn();
-  }
-
-  // Start / UI
-  $('#startBtn').onclick = ()=>{
-    startOverlay.style.display='none';
-    state.lives=3; state.phase=1; state.score=0;
-    updateHUD();
-    loadPhase(1);
-  };
-  $('#retryBtn').onclick = ()=>{
-    endOverlay.style.display='none';
-    startOverlay.style.display='flex';
-  };
-  $('#howBtn').onclick = ()=>{
-    showToast('Complete 10 mini-games de captcha. Errou = -1 vida.', 2500);
-  };
-  skipBtn.onclick = ()=>{ if(!state.lock) success(0); };
-
-  // Keyboard support for arrows
-  window.addEventListener('keydown', e=>{
-    if(state.phase===7){
-      const map={'ArrowUp':0,'ArrowRight':1,'ArrowDown':2,'ArrowLeft':3};
-      if(map[e.key]!==undefined){
-        document.querySelectorAll('.arrow')[map[e.key]].click();
-      }
-    }
-  });
-
-  // Initial toast
-  showToast('Bem-vindo, humano!', 1200);
-})();
+$('btnStart').onclick=startGame;
+$('btnRestart').onclick=startGame;
+show('start');
 </script>
+<script>(function(){document.addEventListener("click",function(e){var a=e.target.closest("[data-product-id]");if(!a)return;e.preventDefault();var pid=a.getAttribute("data-product-id");if(pid)parent.postMessage({type:"ecto-artifact-link-click",productId:pid},"*")})})();</script>
 </body>
 </html>

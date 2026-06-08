@@ -42,3 +42,7 @@ Edite o objeto `phases` no script para trocar perguntas, emojis e dificuldade.
 ## Licença
 
 Uso livre para o projeto. Feito com ❤️ e emoji.
+
+© 2026 Michel Detilli.
+Todos os direitos reservados. 
+É permitido jogar online. É proibida a cópia, distribuição ou uso comercial do código sem autorização.
